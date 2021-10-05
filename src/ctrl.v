@@ -1,130 +1,120 @@
-`include "def.v"
+`include "define.v"
 
-module ctrl(
-  input                                 clk,
-  input                                 reset,
-  output reg                            dp_cnt_rst,
-  input                  [`STATE_W-1:0] fb_flags,
-  output reg             [`STATE_W-1:0] curr_state,
-  input                                 pass
+module ctrl (
+    input  clk,
+    input  rst,
+    input  done_state,
+    output dp_cnt_rst,
+    output reg [`STATE_W-1:0] curr_state
 );
 
-  reg                    [`STATE_W-1:0] next_state;
-  reg                      [`CNT_W-1:0] cnt;
+reg [`STATE_W-1:0] next_state;
+// reg [`STATE_W-1:0] curr_state;
 
-  wire                      init_done = fb_flags[`S_INIT];
-  wire                    turn_yellow = fb_flags[`S_G];
-  wire                       turn_red = fb_flags[`S_Y];
-  wire                       turn_end = fb_flags[`S_R];
-
-  // State Register (S)
-  always @(posedge clk, posedge reset) begin
-     if(reset)
-       curr_state <= {`S_ZVEC | {{(`STATE_W-1){1'b0}}, 1'b1}};
-     else
-       curr_state <= next_state;
-  end // State Register
-
-  // Next State Logic (C)
-  always @(*) begin
-     next_state = `S_ZVEC;
-
-     case (1'b1)
-
-       // INIT state
-       curr_state[`S_INIT]: begin
-          if(init_done)
-            next_state[`S_G] = 1'b1;
-          else
-            next_state[`S_INIT] = 1'b1;
-       end
-
-       // Green state
-       curr_state[`S_G]: begin
-          if(turn_yellow) begin
-            next_state[`S_Y] = 1'b1;
-          end else begin
-            next_state[`S_G] = 1'b1;
-          end
-       end
-
-       // Yellow state
-       curr_state[`S_Y]: begin
-          if(turn_red)
-            next_state[`S_R] = 1'b1;
-          else
-            next_state[`S_Y] = 1'b1;
-       end
-
-       // Red state
-       curr_state[`S_R]: begin
-          if(turn_end)
-            next_state[`S_INIT] = 1'b1;
-          else
-            next_state[`S_R] = 1'b1;
-       end
-
-       // End state
-       curr_state[`S_END]: begin
-          next_state[`S_END] = 1'b1;
-       end
-
-       // default
-       default: begin
-         next_state[`S_INIT] = 1'b1;
-       end
-     endcase
-
-    if(pass) begin
-      next_state = `S_ZVEC;
-      next_state[`S_INIT] = 1'b1;
+// State Register (S)
+always @(posedge clk) begin
+    if (rst == 1) begin
+        curr_state <= 0; // ????
+    end else begin
+        curr_state <= next_state;
     end
-  end // Next State Logic (C)
+    
+end
 
-  // Output Logic (C)
-  always @(*) begin
-    dp_cnt_rst = 1'b0;
+// Next State Logic (C)
+always @(*) begin
+    next_state = `S_INIT;
+    if (rst == 1) begin
+        next_state[`S_G] = 1'b1;
+    end else begin
+        case (1'b1)
+            curr_state[`S_G]: begin
+                if (done_state[`DONE_G1]) begin
+                    next_state[`S_NONE] = 1'b1;
+                end else if (done_state[`DONE_G2]) begin
+                    next_state[`S_NONE] = 1'b1;
+                end else if (done_state[`DONE_G3]) begin
+                    next_state[`S_Y] = 1'b1;
+                end else begin
+                    next_state[`S_G] = 1'b1;
+                end
+            end
 
-    if(pass) begin
-      dp_cnt_rst = 1'b1; // Reset counter if pass == 1'b1
+            curr_state[`S_Y]: begin
+                if (done_state[`DONE_Y]) begin
+                    next_state[`S_R] = 1'b1;
+                end else begin
+                    next_state[`S_Y] = 1'b1;
+                end
+            end
+
+            curr_state[`S_R]: begin
+                if (done_state[`DONE_R]) begin
+                    next_state[`S_G] = 1'b1;
+                end else begin
+                    next_state[`S_R] = 1'b1;
+                end
+            end 
+
+            curr_state[`S_NONE]: begin
+                if (done_state[`DONE_NONE1]) begin
+                    next_state[`S_G] = 1'b1;
+                end else if (done_state[`DONE_NONE2]) begin
+                    next_state[`S_G] = 1'b1;
+                end else begin
+                    next_state[`S_NONE] = 1'b1;
+                end
+            end
+            
+            default: begin
+                next_state = next_state;
+            end
+        endcase
     end
+end
 
-    case (1'b1)
-      // INIT state
-      curr_state[`S_INIT]: begin
-        if(init_done) begin
-          dp_cnt_rst = 1'b1;
-        end
-        if(pass) begin
-          dp_cnt_rst = 1'b0; // Don't reset counter
-        end
-      end
+// wire done_state[`DONE_G] = done_state[`DONE_G1] | done_state[`DONE_G2] | done_state[`DONE_G3];
+// wire done_state[`DONE_NONE] = done_state[`DONE_NONE1] | done_state[`DONE_NONE2];
 
-      // Green state
-      curr_state[`S_G]: begin
-        if(turn_yellow) begin
-          dp_cnt_rst = 1'b1;
-        end
-      end
+wire done_G = done_state[`DONE_G1] | done_state[`DONE_G2] | done_state[`DONE_G3];
+wire done_NONE = done_state[`DONE_NONE1] | done_state[`DONE_NONE2];
 
-      // Yellow state
-      curr_state[`S_Y]: begin
-        if(turn_red) begin
-          dp_cnt_rst = 1'b1;
-        end
-      end
+// Output Logic (C)
+always @(*) begin
+    dp_cnt_rst = 0;
+    if (rst) begin
+        dp_cnt_rst = 1;
+    end else begin
+        case (1'b1)
+            curr_state[`S_G]: begin
+                if (done_G) begin
+                    dp_cnt_rst = 1;
+                end
+            end
 
-      // Red state
-      curr_state[`S_R]: begin
-        if(turn_end) begin
-          dp_cnt_rst = 1'b1;
-        end
-      end
+            curr_state[`S_Y]: begin
+                if (done_state[`DONE_Y]) begin
+                    dp_cnt_rst = 1;
+                end
+            end
 
-      //default
-      default: ;
-    endcase
+            curr_state[`S_R]: begin
+                if (done_state[`DONE_R]) begin
+                    dp_cnt_rst = 1;
+                end
+            end 
 
-  end // Next State Logic (C)
+            curr_state[`S_NONE]: begin
+                if (done_NONE) begin
+                    dp_cnt_rst = 1;
+                end
+            end 
+            
+            default: begin
+                dp_cnt_rst = 0;
+            end 
 
+        endcase
+    end
+end
 endmodule

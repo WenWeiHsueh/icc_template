@@ -1,39 +1,58 @@
-`include "def.v"
+`include "define.v"
 
 module traffic_light (
-  input  clk,
-  input  rst,
-  input  pass,
-  output R,
-  output G,
-  output Y
+    input  clk,
+    input  rst,
+    input  pass,
+    output R,
+    output G,
+    output Y
 );
 
-  wire                [`STATE_W-1:0] fb_flags;
-  wire                [`STATE_W-1:0] state;
-  wire                [`STATE_W-1:0] int_flags;
+wire [`STATE_DONE_W-1:0] done_state;
+wire [`STATE_DONE_W-1:0] done_state_ctrl;
 
-  assign                             fb_flags = int_flags & state;
-  wire                               dp_cnt_rst;
+assign done_state_ctrl = done_state;
 
-  ctrl ul_ctrl(
+// light_control
+always @(*) begin
+    case (1'b1)
+        curr_state[`S_R]: begin
+            {R, G, Y} = {1'b1, 1'b0, 1'b0};
+        end 
+
+        curr_state[`S_G]: begin
+            {R, G, Y} = {1'b0, 1'b1, 1'b0};
+        end 
+        
+        curr_state[`S_Y]: begin
+            {R, G, Y} = {1'b0, 1'b0, 1'b1};
+        end 
+
+        curr_state[`S_NONE]: begin
+            {R, G, Y} = {1'b0, 1'b0, 1'b0};
+        end 
+
+        default: begin
+            {R, G, Y} = {1'b0, 1'b0, 1'b0};
+        end
+    endcase
+end
+
+ctrl ctrl_traffic_light(
     .clk(clk),
-    .reset(rst),
+    .rst(rst),
+    .done_state(done_state_ctrl),
     .dp_cnt_rst(dp_cnt_rst),
-    .fb_flags(fb_flags),
-    .curr_state(state),
-    .pass(pass)
-  );
+    .curr_state(curr_state)
+);
 
-  dp ul_dp(
+dp dp_traffic_light(
     .clk(clk),
-    .reset(rst),
-    .cnt_rst(dp_cnt_rst),
-    .state(state),
-    .int_flags(int_flags),
-    .R(R),
-    .G(G),
-    .Y(Y)
-  );
+    .rst(rst),
+    .done_state(done_state),
+    .dp_cnt_rst(dp_cnt_rst),
+    .curr_state(curr_state)
+);
 
 endmodule

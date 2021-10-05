@@ -1,93 +1,98 @@
-`include "def.v"
+`include "define.v"
 
-`define send_interrupt(flag_i, thres_i)\
-  always @(posedge clk) begin          \
-    if(reset) begin                    \
-      int_flags[flag_i] <= 1'b0;       \
-    end else begin                     \
-      if(state[flag_i])                \
-        int_flags[flag_i] <= (cnt <= thres_i) ? 1'b0 : 1'b1; \
-      else                             \
-        int_flags[flag_i] <= 1'b0;     \
-    end                                \
-  end                                  \
-
-module dp(
-  input                                 clk,
-  input                                 reset,
-  input                                 cnt_rst,
-  input                  [`STATE_W-1:0] state,
-  output reg             [`STATE_W-1:0] int_flags,
-  output                                R,
-  output                                G,
-  output                                Y
+module dp (
+    input  clk,
+    input  reset,
+    input  curr_state,
+    input  dp_cnt_rst,
+    output done_state
 );
 
-  // Pseudo output register
-  reg                       Grst_r;
-  reg                       R_r;
-  reg                       G_r;
-  reg                       Y_r;
+reg [`CNT_W-1:0] cnt;
+wire reset = red_done | rst; // since I have to reset the done signal either red_done or rst 
+reg [`STATE_DONE_W-1:0] done_state;
+
+// cnt
+always @(posedge clk) begin
+    if (dp_cnt_rst) begin
+        cnt <= 0;
+    end else begin
+        cnt <= cnt + 1;
+    end
+end
+
+// S_G
+always @(posedge clk) begin
+    if (reset) begin
+        done_state[`DONE_G1] <= 1'b0;
+        done_state[`DONE_G2] <= 1'b0;
+        done_state[`DONE_G3] <= 1'b0;
+    end else begin
+        if (curr_state[`S_G]) begin
+            if (done_state[`DONE_G1] == 1'b0) begin
+                if (cnt > 1024) begin
+                    done_state[`DONE_G1] <= 1'b1;
+                end
+            end else if (done_state[`DONE_G2] == 1'b0) begin
+                if (cnt > 128) begin
+                    done_state[`DONE_G2] <= 1'b1;
+                end
+            end else if (done_state[`DONE_G3] == 1'b0)) begin
+                if (cnt > 128) begin
+                    done_state[`DONE_G3] <= 1'b1;
+                end
+            end
+        end
+    end
+end
+
+// S_Y
+always @(posedge clk) begin
+    if (reset) begin
+        done_state[`DONE_Y] <= 1'b0;
+    end else begin
+        if (curr_state[`S_Y]) begin
+            if (done_state[`DONE_Y] == 1'b0) begin
+                if (cnt > 512) begin
+                    done_state[`DONE_Y] <= 1'b1;
+                end 
+            end
+        end
+    end
+end
   
-  assign G = state[`S_INIT] | G_r;
-  assign Y = state[`S_Y];
-  assign R = state[`S_R];
-
-  reg            [`CNT_W-1:0] cnt;
-  wire           [`CNT_W-1:0] cnt_zero = {`CNT_W{1'b0}};
-
-  // Interrupts
-  `send_interrupt (`S_INIT, 1021)
-  `send_interrupt (`S_R, 1021)
-  `send_interrupt (`S_G, 509)
-  `send_interrupt (`S_Y, 509)
-
-  // Grst_r
-  always @(posedge clk) begin
-    if(reset) begin 
-      Grst_r <= 1'b0;
-    end else if (state[`S_INIT]) begin
-      Grst_r <= (cnt < 1023) ? 1'b1 : 1'b0;
+// S_R
+always @(posedge clk) begin
+    if (reset) begin
+        done_state[`DONE_R] <= 1'b0;
+    end else begin
+        if (curr_state[`S_R]) begin
+            if (done_state[`DONE_R] == 1'b0) begin
+                if (cnt > 1024) begin
+                    done_state[`DONE_R] <= 1'b1;
+                end 
+            end
+        end
     end
-  end
+end  
 
-  // G_r
-  always @(posedge clk) begin
-    if(reset) begin 
-      G_r <= 1'b0;
-    end else if (state[`S_G]) begin
-      G_r <= ( (cnt >= 127 & cnt <= 254) | (cnt >= 383 & cnt <= 510)) ? 1'b1 : 1'b0;
+// S_NONE
+always @(posedge clk) begin
+    if (reset) begin
+        done_state[`DONE_NONE1] <= 1'b0;
+        done_state[`DONE_NONE2] <= 1'b0;
+    end else begin
+        if (curr_state[`S_NONE]) begin
+            if (done_state[`DONE_NONE1] == 1'b0) begin
+                if (cnt > 128) begin
+                    done_state[`DONE_NONE1] <= 1'b1; 
+                end
+            end else if (done_state[`DONE_NONE2] == 1'b0) begin
+                if (cnt > 128) begin
+                    done_state[`DONE_NONE2] <= 1'b1; 
+                end
+            end
+        end
     end
-  end
-
-  // R_r
-  always @(posedge clk) begin
-    if(reset) begin 
-      R_r <= 1'b0;
-    end else if (state[`S_R]) begin
-      R_r <= (cnt <= 1024) ? 1'b1 : 1'b0;
-    end
-  end
-
-  // Y_r
-  always @(posedge clk) begin
-    if(reset) begin 
-      Y_r <= 1'b0;
-    end else if (state[`S_Y]) begin
-      Y_r <= (cnt <= 512) ? 1'b1 : 1'b0;
-    end
-  end
-
-  // cnt
-  wire do_cnt = |state;
-  always @(posedge clk, posedge reset) begin
-    if(reset) begin 
-      cnt <= cnt_zero;
-    end else if(cnt_rst) begin
-      cnt <= cnt_zero;
-    end else if (do_cnt) begin
-      cnt <= cnt + 1;
-    end
-  end
-
+end
 endmodule
