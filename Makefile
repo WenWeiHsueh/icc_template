@@ -59,7 +59,7 @@ check:
 	jg -superlint $(SCRIPT_DIR)/superlint.tcl &
 
 # Run RTL simulation
-rtl: $(BUILD) gen_def cp_tb_src
+rtl: $(BUILD) cp_tb_src
 	cd $(BUILD_DIR); \
 	ncverilog $(SIM_DIR)/$(TB_TOP).v $(SRC) \
 	+incdir+$(SRC_DIR) \
