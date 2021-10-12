@@ -9,7 +9,8 @@ module traffic_light (
     output Y
 );
 
-wire [`STATE_W-1:0] state;
+// DO NOT FORGET TO DO THIS.
+wire [`STATE_W-1:0] curr_state;
 wire [`STATE_DONE_W-1:0] done_state;
 
 ctrl ctrl_traffic_light(
@@ -18,7 +19,7 @@ ctrl ctrl_traffic_light(
     .pass(pass),
     .done_state(done_state),
     .dp_cnt_rst(dp_cnt_rst),
-    .curr_state(state)// in the () is not the default name
+    .curr_state(curr_state)// in the () is not the default name
 );
 
 dp dp_traffic_light(
@@ -26,7 +27,7 @@ dp dp_traffic_light(
     .rst(rst),
     .done_state(done_state),
     .dp_cnt_rst(dp_cnt_rst),
-    .curr_state(state),
+    .curr_state(curr_state),
     .R(R),
     .G(G),
     .Y(Y)

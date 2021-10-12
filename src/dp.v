@@ -12,12 +12,11 @@ module dp (
 );
 
 reg [`CNT_W-1:0] cnt;
-wire reset = done_state[`DONE_R] | rst; // since I have to reset the done signal either red_done or rst 
 
 // cnt
 always @(posedge clk) begin
     if (dp_cnt_rst) begin
-        cnt <= 0;
+        cnt <= 0; //Must be '0' because of the width.
     end else begin
         cnt <= cnt + 1;
     end
@@ -28,56 +27,44 @@ always @(*) begin
     done_state = `DONE_ZVEC;
     case (1'b1)
         curr_state[`S_G1]: begin
-            if (done_state[`DONE_G1] == 1'b0) begin
-                if (cnt > 1022) begin
-                    done_state[`DONE_G1] = 1'b1;
-                end
-            end 
+            if (cnt > 1022) begin
+                done_state[`DONE_G1] = 1'b1;
+            end
         end
 
         curr_state[`S_G2]: begin
-            if (done_state[`DONE_G2] == 1'b0) begin
-                if (cnt > 126) begin
-                    done_state[`DONE_G2] = 1'b1;
-                end
-            end 
+            if (cnt > 126) begin
+                done_state[`DONE_G2] = 1'b1;
+            end
         end
 
         curr_state[`S_G3]: begin
-            if (done_state[`DONE_G3] == 1'b0) begin
-                if (cnt > 126) begin
-                    done_state[`DONE_G3] = 1'b1;
-                end
-            end 
+            if (cnt > 126) begin
+                done_state[`DONE_G3] = 1'b1;
+            end
         end
 
         curr_state[`S_Y]: begin
-            if (done_state[`DONE_Y] == 1'b0) begin
-                if (cnt > 510) begin
-                    done_state[`DONE_Y] = 1'b1;
-                end 
-            end
+            if (cnt > 510) begin
+                done_state[`DONE_Y] = 1'b1;
+            end 
         end
+
         curr_state[`S_R]: begin
-            if (done_state[`DONE_R] == 1'b0) begin
-                if (cnt > 1022) begin
-                    done_state[`DONE_R] = 1'b1;
-                end 
-            end
+            if (cnt > 1022) begin
+                done_state[`DONE_R] = 1'b1;
+            end 
         end
+        
         curr_state[`S_NONE1]: begin
-            if (done_state[`DONE_NONE1] == 1'b0) begin
-                if (cnt > 126) begin
-                    done_state[`DONE_NONE1] = 1'b1; 
-                end
+            if (cnt > 126) begin
+                done_state[`DONE_NONE1] = 1'b1; 
             end
         end
 
         curr_state[`S_NONE2]: begin
-            if (done_state[`DONE_NONE2] == 1'b0) begin
-                if (cnt > 126) begin
-                    done_state[`DONE_NONE2] = 1'b1; 
-                end
+            if (cnt > 126) begin
+                done_state[`DONE_NONE2] = 1'b1; 
             end
         end
     endcase
